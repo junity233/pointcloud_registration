@@ -6,13 +6,17 @@
 #include <map>
 #include <functional>
 #include <stdexcept>
+#include <vector>
 
 class MetricBase {
 public:
   virtual ~MetricBase() = default;
-  virtual double evaluate(const PointCloud& result, const PointCloud& target) = 0;
+  virtual double evaluate(const std::vector<TransMat>& estimated,
+                          const std::vector<TransMat>& ground_truth) = 0;
   virtual std::string name() const = 0;
 };
+
+using Metric = MetricBase*;
 
 class MetricManager : public Singleton<MetricManager> {
 public:

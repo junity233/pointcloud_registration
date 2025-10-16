@@ -1,6 +1,6 @@
 add_rules("mode.debug", "mode.release")
 
-add_requires("pcl", "eigen","nlohmann_json","thread-pool","csvparser","openmp","boost","nanoflann","cmake")
+add_requires("pcl", "eigen","nlohmann_json","thread-pool","csvparser","openmp","boost","nanoflann","cmake","cxxopts")
 
 package("shark")
     set_kind("library")
@@ -21,8 +21,8 @@ package_end()
 
 target("pointcloud_registration")
     set_kind("binary")
-    add_files("src/*.cpp")
+    add_files("src/**.cpp")
     set_languages("c++23")
     add_includedirs("src")
-    add_packages("pcl", "eigen","nlohmann_json","thread-pool","csvparser","openmp","nanoflann","shark")
+    add_packages("pcl", "eigen","nlohmann_json","thread-pool","csvparser","openmp","nanoflann","boost","shark","cxxopts")
 target_end()

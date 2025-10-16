@@ -1,20 +1,24 @@
 #pragma once
 #include "common.hpp"
 #include "singleton.hpp"
+#include "logger.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
 #include <memory>
 #include <map>
 #include <functional>
 #include <stdexcept>
+#include <eigen3/Eigen/src/Core/Matrix.h>
 
 
-class AlgorithmBase {
-public:
+class AlgorithmBase : public LoggerAble<AlgorithmBase> {
+public: 
   virtual ~AlgorithmBase() = default;
   virtual std::string name() const = 0;
-  virtual PointCloud register_point_cloud(const PointCloud& source) = 0;
+  virtual TransMat register_point_cloud(const PointCloud& source, const PointCloud& target) = 0;
 };
+
+using Algorithm = AlgorithmBase*;
 
 class AlgorithmManager : public Singleton<AlgorithmManager> {
 public:

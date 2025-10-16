@@ -5,118 +5,114 @@
 # project
 cmake_minimum_required(VERSION 3.15.0)
 cmake_policy(SET CMP0091 NEW)
+set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm@19/bin/clang")
+set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm@19/bin/clang++")
 project(pointcloud_registration LANGUAGES CXX)
+set(CURRENT_COMPILER_ID ${CMAKE_CXX_COMPILER_ID})
 
 # target
 add_executable(pointcloud_registration "")
 set_target_properties(pointcloud_registration PROPERTIES OUTPUT_NAME "pointcloud_registration")
-set_target_properties(pointcloud_registration PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build/windows/x64/release")
+set_target_properties(pointcloud_registration PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build/macosx/arm64/release")
 target_include_directories(pointcloud_registration PRIVATE
     src
 )
 target_include_directories(pointcloud_registration SYSTEM PRIVATE
-    C:/Users/Junity/AppData/Local/.xmake/packages/p/pcl/1.14.1/d355404e738148e1be1b6dae14d30f97/include/pcl-1.14
-    C:/Users/Junity/AppData/Local/.xmake/packages/e/eigen/3.4.0/f561d5e1cd7344ad8190641a792f9a9d/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/e/eigen/3.4.0/f561d5e1cd7344ad8190641a792f9a9d/include/eigen3
-    C:/Users/Junity/AppData/Local/.xmake/packages/f/flann/1.9.2/bd15684d566f4d25b2feb69356c66d20/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/l/lz4/v1.10.0/1ac4323667c44931bf4f1bbfd8b903f7/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/l/libpng/v1.6.47/5d55659be8ef4c6689b4433a60c1ca47/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/z/zlib/v1.3.1/d676b73b676c41cdae37b37fbf6c9cbd/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/q/qhull/2020.2/9961ea58c33b4b1ca29de4fabecfe258/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/g/glew/2.2.0/6a8fc1e310a44318beb712a418386242/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/b/boost/1.85.0/3fdc5fef04024a3fa59bd768dc2595e5/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/n/nlohmann_json/v3.11.3/826582eb66794908a16a49dbdd33bec4/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/t/thread-pool/v5.0.0/046e5ce2ed4040dcba276977ffcdcd00/include
-    C:/Users/Junity/AppData/Local/.xmake/packages/c/csvparser/2.3.0/a89412da3e8d481bac328f374a78936f/include
+    /Users/junity/.xmake/packages/p/pcl/1.14.1/3471ccf81b0f4f36a718eeee7fd9548b/include/pcl-1.14
+    /Users/junity/.xmake/packages/e/eigen/3.4.0/c6019b5c915f4de6993b2be0d1e84cd7/include
+    /Users/junity/.xmake/packages/e/eigen/3.4.0/c6019b5c915f4de6993b2be0d1e84cd7/include/eigen3
+    /Users/junity/.xmake/packages/f/flann/1.9.2/e077a08361d24b088bc7fe5790b428e5/include
+    /Users/junity/.xmake/packages/l/lz4/v1.10.0/001569ceab8042749007cadd9b787f7e/include
+    /Users/junity/.xmake/packages/l/libpng/v1.6.48/17b896f7f91a44fdb5c879176a258d93/include
+    /Users/junity/.xmake/packages/q/qhull/2020.2/b1e1c91d3fca4c3faf80687debb2de5f/include
+    /Users/junity/.xmake/packages/g/glew/2.2.0/70a93c10e64a4434965c6c61e1bb26b4/include
+    /Users/junity/.xmake/packages/b/boost/1.85.0/1ccc0718d9344902b1c803e6eb1b2e77/include
+    /Users/junity/.xmake/packages/n/nlohmann_json/v3.12.0/3b425cf7b9154348b2259d59ddf47f26/include
+    /Users/junity/.xmake/packages/t/thread-pool/v5.0.0/5547dd37803f453a9d4c916083d72b58/include
+    /Users/junity/.xmake/packages/c/csvparser/2.3.0/9f57d1d8987043aeb1e24ce4cc392d77/include
+    /Users/junity/.xmake/packages/l/libomp/19.1.0/f024432623b54dcf8c3679c1af3eeac8/include
+    /Users/junity/.xmake/packages/n/nanoflann/v1.7.1/98cd665db20645fe89632942159f12a4/include
 )
 target_compile_definitions(pointcloud_registration PRIVATE
-    FLANN_STATIC
     GLEW_NO_GLU
-    GLEW_STATIC
-    BOOST_ALL_NO_LIB
 )
 target_compile_options(pointcloud_registration PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:-Xpreprocessor -fopenmp>
     $<$<COMPILE_LANGUAGE:C>:-DNDEBUG>
     $<$<COMPILE_LANGUAGE:CXX>:-DNDEBUG>
+    $<$<COMPILE_LANGUAGE:CXX>:-Xpreprocessor -fopenmp>
     $<$<COMPILE_LANGUAGE:CUDA>:-DNDEBUG>
 )
-if(MSVC)
-    target_compile_options(pointcloud_registration PRIVATE /EHsc)
-elseif(Clang)
-    target_compile_options(pointcloud_registration PRIVATE -fexceptions)
-    target_compile_options(pointcloud_registration PRIVATE -fcxx-exceptions)
-elseif(Gcc)
-    target_compile_options(pointcloud_registration PRIVATE -fexceptions)
-endif()
 set_target_properties(pointcloud_registration PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_features(pointcloud_registration PRIVATE cxx_std_23)
-if(MSVC)
+if(CURRENT_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(pointcloud_registration PRIVATE $<$<CONFIG:Release>:-O2>)
 else()
     target_compile_options(pointcloud_registration PRIVATE -O3)
 endif()
-if(MSVC)
+if(CURRENT_COMPILER_ID STREQUAL "MSVC")
 else()
     target_compile_options(pointcloud_registration PRIVATE -fvisibility=hidden)
 endif()
-if(MSVC)
+if(CURRENT_COMPILER_ID STREQUAL "MSVC")
     set_property(TARGET pointcloud_registration PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 target_link_libraries(pointcloud_registration PRIVATE
-    pcl_common
-    pcl_features
-    pcl_filters
-    pcl_io
-    pcl_io_ply
-    pcl_kdtree
-    pcl_keypoints
-    pcl_ml
-    pcl_octree
     pcl_recognition
-    pcl_registration
-    pcl_sample_consensus
+    pcl_io_ply
+    pcl_common
     pcl_search
+    pcl_surface
+    pcl_features
+    pcl_registration
+    pcl_kdtree
+    pcl_io
+    pcl_sample_consensus
+    pcl_filters
     pcl_segmentation
     pcl_stereo
-    pcl_surface
+    pcl_octree
+    pcl_keypoints
+    pcl_ml
     pcl_tracking
     flann_s
     lz4
     png
-    zlib
+    z
     qhullcpp
-    qhullstatic
     qhullstatic_r
-    glew32s
-    libboost_iostreams-mt-s
-    libboost_graph-mt-s
-    libboost_serialization-mt-s
-    libboost_regex-mt-s
-    libboost_filesystem-mt-s
-    libboost_thread-mt-s
-    libboost_date_time-mt-s
-    libboost_chrono-mt-s
-    libboost_system-mt-s
-    libboost_atomic-mt-s
-    opengl32
-    ntdll
-    shell32
-    advapi32
-    user32
-    ws2_32
+    qhullstatic
+    glew
+    boost_iostreams-mt
+    boost_graph-mt
+    boost_serialization-mt
+    boost_regex-mt
+    boost_filesystem-mt
+    boost_thread-mt
+    boost_date_time-mt
+    boost_system-mt
+    boost_atomic-mt
+    omp
 )
 target_link_directories(pointcloud_registration PRIVATE
-    C:/Users/Junity/AppData/Local/.xmake/packages/p/pcl/1.14.1/d355404e738148e1be1b6dae14d30f97/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/f/flann/1.9.2/bd15684d566f4d25b2feb69356c66d20/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/l/lz4/v1.10.0/1ac4323667c44931bf4f1bbfd8b903f7/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/l/libpng/v1.6.47/5d55659be8ef4c6689b4433a60c1ca47/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/z/zlib/v1.3.1/d676b73b676c41cdae37b37fbf6c9cbd/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/q/qhull/2020.2/9961ea58c33b4b1ca29de4fabecfe258/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/g/glew/2.2.0/6a8fc1e310a44318beb712a418386242/lib
-    C:/Users/Junity/AppData/Local/.xmake/packages/b/boost/1.85.0/3fdc5fef04024a3fa59bd768dc2595e5/lib
+    /Users/junity/.xmake/packages/p/pcl/1.14.1/3471ccf81b0f4f36a718eeee7fd9548b/lib
+    /Users/junity/.xmake/packages/f/flann/1.9.2/e077a08361d24b088bc7fe5790b428e5/lib
+    /Users/junity/.xmake/packages/l/lz4/v1.10.0/001569ceab8042749007cadd9b787f7e/lib
+    /Users/junity/.xmake/packages/l/libpng/v1.6.48/17b896f7f91a44fdb5c879176a258d93/lib
+    /Users/junity/.xmake/packages/q/qhull/2020.2/b1e1c91d3fca4c3faf80687debb2de5f/lib
+    /Users/junity/.xmake/packages/g/glew/2.2.0/70a93c10e64a4434965c6c61e1bb26b4/lib
+    /Users/junity/.xmake/packages/b/boost/1.85.0/1ccc0718d9344902b1c803e6eb1b2e77/lib
+    /Users/junity/.xmake/packages/l/libomp/19.1.0/f024432623b54dcf8c3679c1af3eeac8/lib
 )
-target_sources(pointcloud_registration PRIVATE
+# private sourcefiles from sourcebatch c++.build for target pointcloud_registration
+target_sources(pointcloud_registration PRIVATE 
+    src/process.cpp
+    src/algorithm/icp.cpp
+    src/logger.cpp
+    src/dataset_loader/3dmatch_dataset_loader.cpp
+    src/metric/translation_error_metric.cpp
+    src/metric/rotation_error_metric.cpp
     src/main.cpp
 )
 

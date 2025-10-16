@@ -10,3 +10,11 @@ build/
 .vscode
 .xmake
 cmake-build-debug
+
+compile_commands.json
+
+datasets
+
+config.json
+
+icp_result.csv

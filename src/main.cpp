@@ -1,147 +1,216 @@
-#include <atomic>
 #include <fstream>
-#include <iostream>
+#include <map>
 #include <memory>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include <cxxopts.hpp>
 #include <nlohmann/json.hpp>
-#include <BS_thread_pool.hpp>
-#include <csv.hpp>
-#include <print>
-#include <ranges>
 
 #include "algorithm/algorithm_base.hpp"
 #include "dataset_loader/dataset_loader_base.hpp"
 #include "metric/metric_base.hpp"
-int main(int argc, char **argv) {
-    nlohmann::json config;
-    std::ifstream config_file("config.json");
+#include "pcl/console/print.h"
+#include "process.h"
+#include "logger.hpp"
 
-    std::vector<std::shared_ptr<AlgorithmBase>> algorithms;
-    std::shared_ptr<DatasetLoaderBase> dataset_loader;
-    std::vector<std::shared_ptr<MetricBase>> metrics;
+namespace {
+
+constexpr std::string_view ROLE_MAIN{"main"};
+
+bool validate_config(const nlohmann::json &config) {
+    pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
+    if (!config.contains("algorithms") || !config["algorithms"].is_array()) {
+        LOG_ERROR(ROLE_MAIN, "config.algorithms must be an array");
+        return false;
+    }
+
+    if (!config.contains("metrics") || !config["metrics"].is_array()) {
+        LOG_ERROR(ROLE_MAIN, "config.metrics must be an array");
+        return false;
+    }
+
+    if (!config.contains("dataset_loader") || !config["dataset_loader"].is_object()) {
+        LOG_ERROR(ROLE_MAIN, "config.dataset_loader must be an object");
+        return false;
+    }
+
+    if (!config["dataset_loader"].contains("name") ||
+        !config["dataset_loader"]["name"].is_string()) {
+        LOG_ERROR(ROLE_MAIN, "config.dataset_loader.name must be a string");
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace
+
+std::string join_names(const std::vector<std::string> &names) {
+    std::ostringstream oss;
+    for (size_t idx = 0; idx < names.size(); ++idx) {
+        if (idx > 0) {
+            oss << ", ";
+        }
+        oss << names[idx];
+    }
+    return oss.str();
+}
+
+int main(int argc, char **argv) {
+    cxxopts::Options options("Pointcloud Registration Evaluator",
+                             "Evaluate point cloud registration algorithms");
+    
+    options.add_options()("c,config", "Path to config file",
+                          cxxopts::value<std::string>()->default_value("config.json"))
+                        ("h,help", "Print help");
+    
+    auto parsed_options = options.parse(argc, argv);
+    if (parsed_options.count("help")) {
+        std::cout << options.help() << std::endl;
+        return 0;
+    }
+    
+    auto config_path = parsed_options["config"].as<std::string>();
+
+
+    nlohmann::json config;
+    std::ifstream config_file(config_path);
 
     if (!config_file.is_open()) {
-        std::cout << "Error: Could not open config.json" << std::endl;
+        LOG_ERROR(ROLE_MAIN, "Could not open {}", config_path);
         return -1;
     }
 
+    LOG_INFO(ROLE_MAIN, "Loading config from {}", config_path);
     try {
         config_file >> config;
     } catch (const std::exception &e) {
-        std::cout << "Error: Failed to parse config.json: " << e.what() << std::endl;
+        LOG_ERROR(ROLE_MAIN, "Failed to parse {}: {}", config_path, e.what());
         return -1;
     }
 
-    if (!config.contains("algorithms") || !config["algorithms"].is_array()) {
-        std::cout << "Error: config.algorithms must be an array" << std::endl;
+    if (!validate_config(config)) {
         return -1;
     }
-    if (!config.contains("metrics") || !config["metrics"].is_array()) {
-        std::cout << "Error: config.metrics must be an array" << std::endl;
-        return -1;
-    }
-    if (!config.contains("dataset_loader") || !config["dataset_loader"].is_object()) {
-        std::cout << "Error: config.dataset_loader must be an object" << std::endl;
-        return -1;
-    }
-    if (!config["dataset_loader"].contains("name") || !config["dataset_loader"]["name"].is_string()) {
-        std::cout << "Error: config.dataset_loader.name must be a string" << std::endl;
-        return -1;
-    }
+    LOG_INFO(ROLE_MAIN, "Configuration validated");
+
+    std::vector<std::shared_ptr<AlgorithmBase>> algorithms;
+    algorithms.reserve(config["algorithms"].size());
 
     for (const auto &algorithm_config : config["algorithms"]) {
-        if (!algorithm_config.contains("name") || !algorithm_config["name"].is_string()) {
-            std::cout << "Error: Each algorithm config must have a string 'name'" << std::endl;
+        if (!algorithm_config.contains("name") ||
+            !algorithm_config["name"].is_string()) {
+            LOG_ERROR(ROLE_MAIN, "Each algorithm config must have a string 'name'");
             return -1;
         }
+
+        const auto algorithm_name = algorithm_config["name"].get<std::string>();
         try {
             auto algorithm =
-                algorithmManager.create(algorithm_config["name"], algorithm_config);
+                algorithmManager.create(algorithm_name, algorithm_config);
             algorithms.emplace_back(std::move(algorithm));
+            LOG_INFO(ROLE_MAIN, "Initialized algorithm '{}'", algorithm_name);
         } catch (const std::exception &e) {
-            std::cout << "Error creating algorithm '" << algorithm_config["name"].get<std::string>()
-                      << "': " << e.what() << std::endl;
+            LOG_ERROR(ROLE_MAIN, "Error creating algorithm '{}': {}", algorithm_name, e.what());
             return -1;
         }
     }
+
+    std::vector<std::shared_ptr<MetricBase>> metrics;
+    metrics.reserve(config["metrics"].size());
 
     for (const auto &metric_config : config["metrics"]) {
         if (!metric_config.contains("name") || !metric_config["name"].is_string()) {
-            std::cout << "Error: Each metric config must have a string 'name'" << std::endl;
+            LOG_ERROR(ROLE_MAIN, "Each metric config must have a string 'name'");
             return -1;
         }
+
+        const auto metric_name = metric_config["name"].get<std::string>();
         try {
-            auto metric = metricManager.create(metric_config["name"], metric_config);
+            auto metric = metricManager.create(metric_name, metric_config);
             metrics.emplace_back(std::move(metric));
+            LOG_INFO(ROLE_MAIN, "Initialized metric '{}'", metric_name);
         } catch (const std::exception &e) {
-            std::cout << "Error creating metric '" << metric_config["name"].get<std::string>()
-                      << "': " << e.what() << std::endl;
+            LOG_ERROR(ROLE_MAIN, "Error creating metric '{}': {}", metric_name, e.what());
             return -1;
         }
     }
 
+    std::shared_ptr<DatasetLoaderBase> dataset_loader;
     try {
         dataset_loader = datasetLoaderManager.create(
             config["dataset_loader"]["name"], config["dataset_loader"]);
+        LOG_INFO(ROLE_MAIN, "Dataset loader '{}' ready",
+                 config["dataset_loader"]["name"].get<std::string>());
     } catch (const std::exception &e) {
-        std::cout << "Error creating dataset loader '" << config["dataset_loader"]["name"].get<std::string>()
-                  << "': " << e.what() << std::endl;
+        LOG_ERROR(ROLE_MAIN, "Error creating dataset loader '{}': {}",
+                  config["dataset_loader"]["name"].get<std::string>(), e.what());
         return -1;
     }
 
-    auto point_clouds = dataset_loader->load_point_clouds();
+    std::vector<std::string> algorithm_names;
+    algorithm_names.reserve(algorithms.size());
+    for (const auto &algorithm : algorithms) {
+        algorithm_names.emplace_back(algorithm->name());
+    }
 
-    auto thread_pool = BS::thread_pool{std::thread::hardware_concurrency() + 1};
+    std::vector<std::string> metric_names;
+    metric_names.reserve(metrics.size());
+    for (const auto &metric : metrics) {
+        metric_names.emplace_back(metric->name());
+    }
 
-    std::map<std::string, std::vector<std::future<std::vector<double>>>>
-        result_futures;
+    const auto dataset_loader_name =
+        config["dataset_loader"]["name"].get<std::string>();
+    if (config["dataset_loader"].contains("split") &&
+        config["dataset_loader"]["split"].is_string()) {
+        LOG_INFO(ROLE_MAIN, "Dataset loader: {} (split={})", dataset_loader_name,
+                 config["dataset_loader"]["split"].get<std::string>());
+    } else {
+        LOG_INFO(ROLE_MAIN, "Dataset loader: {}", dataset_loader_name);
+    }
+    LOG_INFO(ROLE_MAIN, "Algorithms: {}", join_names(algorithm_names));
+    LOG_INFO(ROLE_MAIN, "Metrics: {}", join_names(metric_names));
 
-    const int task_total = static_cast<int>(algorithms.size() * point_clouds.size());
-    std::atomic_int completed_tasks = 0;
-
-    for (auto &algorithm : algorithms) {
-        for (const auto &point_cloud : point_clouds) {
-            auto algo = algorithm; // copy shared_ptr (stable in lambda)
-            auto pc_ptr = &point_cloud; // stable pointer to element
-            auto future = thread_pool.submit_task([algo, pc_ptr, &metrics, &completed_tasks, task_total]() {
-                auto result = algo->register_point_cloud(*pc_ptr);
-                std::vector<double> metric_results;
-                metric_results.reserve(metrics.size());
-
-                for (const auto &metric : metrics) {
-                    auto metric_result = metric->evaluate(result, *pc_ptr);
-                    metric_results.emplace_back(metric_result);
+    std::size_t thread_count_hint = 0;
+    if (config.contains("runner") && config["runner"].is_object()) {
+        const auto &runner_config = config["runner"];
+        if (runner_config.contains("threads")) {
+            const auto &threads_value = runner_config["threads"];
+            if (threads_value.is_number_unsigned()) {
+                thread_count_hint = threads_value.get<std::size_t>();
+            } else if (threads_value.is_number_integer()) {
+                const auto threads_signed = threads_value.get<long long>();
+                if (threads_signed > 0) {
+                    thread_count_hint = static_cast<std::size_t>(threads_signed);
                 }
-
-                completed_tasks.store(completed_tasks.load() + 1);
-                std::print("Complete {}/{}\r", completed_tasks.load(), task_total);
-
-                return metric_results;
-            });
-
-            result_futures[algorithm->name()].emplace_back(std::move(future));
+            }
         }
     }
 
-    thread_pool.wait();
-
-    std::map<std::string, std::vector<std::vector<double>>> results;
-
-    for (auto& [algorithm_name, futures] : result_futures)
-    {
-        auto &algorithm_result = results[algorithm_name];
-        for (auto& future : futures)
-             algorithm_result.emplace_back(future.get());
-
-        std::ofstream csv_file(algorithm_name + "_result.csv");
-        auto writer = csv::make_csv_writer(csv_file);
-
-        writer << (metrics | std::views::transform([](std::shared_ptr<MetricBase> metric) {
-            return metric->name();
-        }));
-
-        for (const auto& result : algorithm_result)
-            writer << result;
+    unsigned int default_threads = std::thread::hardware_concurrency();
+    if (default_threads == 0) {
+        default_threads = 1;
     }
+    const std::size_t effective_threads =
+        thread_count_hint > 0 ? thread_count_hint : default_threads;
+    LOG_INFO(ROLE_MAIN, "Threads: {}", effective_threads);
+
+    const auto samples = dataset_loader->load_samples();
+    std::size_t total_point_clouds = 0;
+    for (const auto &sample : samples) {
+        total_point_clouds += sample.point_clouds.size();
+    }
+    LOG_INFO(ROLE_MAIN, "Loaded {} samples totaling {} point clouds",
+             samples.size(), total_point_clouds);
+    const auto results =
+        run_evaluation(algorithms, samples, metrics, effective_threads);
+    write_results_to_csv(results, metrics);
+
+    LOG_INFO(ROLE_MAIN, "Evaluation completed successfully");
 
     return 0;
 }

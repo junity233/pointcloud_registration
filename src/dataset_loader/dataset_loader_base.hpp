@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "logger.hpp"
 #include "singleton.hpp"
 #include <nlohmann/json.hpp>
 #include <memory>
@@ -7,11 +8,19 @@
 #include <functional>
 #include <stdexcept>
 
-class DatasetLoaderBase {
+struct Sample {
+  std::vector<PointCloud> point_clouds;
+  std::vector<TransMat> world_transforms;
+};
+
+class DatasetLoaderBase:public LoggerAble<DatasetLoaderBase> {
 public:
   virtual ~DatasetLoaderBase() = default;
-  virtual std::vector<PointCloud> load_point_clouds() = 0;
+  virtual std::vector<Sample>  load_samples() = 0;
+  virtual std::string name() const = 0;
 };
+
+using DatasetLoader = DatasetLoaderBase*;
 
 class DatasetLoaderManager : public Singleton<DatasetLoaderManager> {
 public:
